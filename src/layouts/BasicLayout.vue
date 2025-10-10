@@ -1,0 +1,49 @@
+<template>
+  <a-layout class="basic-layout">
+    <!-- 顶部导航栏 -->
+    <GlobalHeader />
+    <!-- 主要内容区域 -->
+    <a-layout-content 
+      class="main-content" 
+      :class="{ 'home-page': isHomePage }"
+    >
+      <router-view />
+    </a-layout-content>
+    <!-- 底部版权信息 -->
+    <GlobalFooter />
+  </a-layout>
+</template>
+
+<script setup lang="ts">
+import GlobalHeader from '@/components/GlobalHeader.vue'
+import GlobalFooter from '@/components/GlobalFooter.vue'
+import { useRoute } from 'vue-router'
+import { computed } from 'vue'
+
+const route = useRoute()
+
+// 判断是否为首页
+const isHomePage = computed(() => route.path === '/')
+</script>
+
+<style scoped>
+.basic-layout {
+  background: var(--bg-secondary);
+  min-height: 100vh;
+  position: relative;
+}
+
+.main-content {
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  margin: 0;
+  min-height: calc(100vh - 64px - 60px); /* 减去头部和底部高度 */
+  padding-top: 56px; /* 为固定导航栏留出空间，确保非首页内容不被遮挡 */
+}
+
+/* 首页特殊样式 */
+.main-content.home-page {
+  padding-top: 0;
+}
+</style>
