@@ -251,6 +251,11 @@ declare namespace API {
     userRole?: string
   }
 
+  type RollbackChatHistoryRequest = {
+    appId?: number
+    historyId?: number
+  }
+
   type UserRegisterRequest = {
     userAccount?: string
     userPassword?: string

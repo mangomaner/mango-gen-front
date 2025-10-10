@@ -186,6 +186,19 @@
                   </div>
                   <div class="message-time" v-if="message.createTime">
                     {{ formatTime(message.createTime) }}
+                    <a-button
+                      v-if="message.type === 'ai' && !message.loading"
+                      type="primary"
+                      size="small"
+                      @click="handleRollback(index)"
+                      :loading="rollingBack.value"
+                      class="rollback-btn"
+                    >
+                      <template #icon>
+                        <RollbackOutlined />
+                      </template>
+                      回滚到此处
+                    </a-button>
                   </div>
                 </div>
               </div>
@@ -317,14 +330,14 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser'
 import {
   getAppVoById,
   deployApp as deployAppApi,
   deleteApp as deleteAppApi,
 } from '@/api/appController'
-import { listAppChatHistory } from '@/api/chatHistoryController'
+import { listAppChatHistory, rollbackChatHistory } from '@/api/chatHistoryController'
 import { CodeGenTypeEnum, formatCodeGenType } from '@/utils/codeGenTypes'
 import request from '@/request'
 
@@ -335,14 +348,7 @@ import aiAvatar from '@/assets/aiAvatar.png'
 import { API_BASE_URL, getStaticPreviewUrl } from '@/config/env'
 import { VisualEditor, type ElementInfo } from '@/utils/visualEditor'
 
-import {
-  CloudUploadOutlined,
-  SendOutlined,
-  ExportOutlined,
-  InfoCircleOutlined,
-  DownloadOutlined,
-  EditOutlined,
-} from '@ant-design/icons-vue'
+import { CloudUploadOutlined, SendOutlined, ExportOutlined, InfoCircleOutlined, DownloadOutlined, EditOutlined, RollbackOutlined } from '@ant-design/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -370,6 +376,7 @@ const loadingHistory = ref(false)
 const hasMoreHistory = ref(false)
 const lastCreateTime = ref<string>()
 const historyLoaded = ref(false)
+const rollingBack = ref(false)
 
 // 预览相关
 const previewUrl = ref('')
@@ -907,6 +914,61 @@ const formatTime = (timeString: string) => {
   }
 }
 
+// 处理历史回滚
+const handleRollback = async (index: number) => {
+  if (rollingBack.value || !appId.value) {
+    return
+  }
+
+  // 显示确认对话框
+  Modal.confirm({
+    title: '确认回滚',
+    content: '确定要回滚到这条消息吗？回滚后，此消息之后的所有对话记录将被删除，且无法恢复。',
+    okText: '确认',
+    cancelText: '取消',
+    onOk: async () => {
+      rollingBack.value = true
+      try {
+        // 我们需要获取原始的聊天历史记录来获取historyId
+        // 重新获取聊天历史
+        const params: API.listAppChatHistoryParams = {
+          appId: appId.value,
+          pageSize: 50 // 获取足够多的历史记录，但不超过后端限制
+        }
+        const historyRes = await listAppChatHistory(params)
+        if (historyRes.data.code === 0 && historyRes.data.data) {
+          const chatHistories = historyRes.data.data.records || []
+          if (chatHistories.length > 0) {
+            // 由于消息列表是倒序排列的，我们需要找到对应的历史记录
+            // 我们只回滚到AI的回复，所以需要找到当前AI消息对应的历史记录
+            const targetHistory = chatHistories[chatHistories.length - 1 - (index + 1)]
+            if (targetHistory) {
+              const rollbackRes = await rollbackChatHistory({
+                appId: appId.value as unknown as number,
+                historyId: targetHistory.id
+              })
+              if (rollbackRes.data.code === 0) {
+                message.success('历史回滚成功')
+                // 重新加载聊天历史
+                await fetchAppInfo()
+              } else {
+                message.error('历史回滚失败：' + rollbackRes.data.message)
+              }
+            } else {
+              message.error('未找到对应的历史记录')
+            }
+          }
+        }
+      } catch (error) {
+        console.error('回滚历史失败：', error)
+        message.error('历史回滚失败，请重试')
+      } finally {
+        rollingBack.value = false
+      }
+    }
+  })
+}
+
 // 页面加载时获取应用信息
 onMounted(() => {
   fetchAppInfo()
@@ -1262,10 +1324,15 @@ onUnmounted(() => {
   color: var(--text-secondary);
   margin-top: 4px;
   text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
 }
 
 .ai-message .message-time {
   text-align: left;
+  justify-content: flex-start;
 }
 
 .message-avatar {
@@ -1393,6 +1460,31 @@ onUnmounted(() => {
 .send-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* 回滚按钮 */
+.rollback-btn {
+  font-size: 12px !important;
+  padding: 6px 12px !important;
+  height: auto !important;
+  color: var(--primary-color) !important;
+  border: 1px solid var(--primary-color) !important;
+  border-radius: 6px !important;
+  background: white !important;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.rollback-btn:hover {
+  color: white !important;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)) !important;
+  border-color: var(--primary-color) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.rollback-btn:active {
+  transform: translateY(0);
 }
 
 .input-footer {

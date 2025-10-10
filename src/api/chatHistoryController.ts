@@ -2,6 +2,21 @@
 /* eslint-disable */
 import request from '@/request'
 
+/** 回退到指定对话历史版本接口 POST /chatHistory/rollback */
+export async function rollbackChatHistory(
+  body: API.RollbackChatHistoryRequest,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>('/chatHistory/rollback', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  })
+}
+
 /** 此处后端没有提供注释 POST /chatHistory/admin/list/page/vo */
 export async function listAllChatHistoryByPageForAdmin(
   body: API.ChatHistoryQueryRequest,
