@@ -181,7 +181,7 @@
                         <span></span>
                         <span></span>
                 </div>
-                      <span class="loading-text">AI 正在思考...</span>
+                      <span class="loading-text">天钿 正在思考...</span>
                     </div>
                   </div>
                   <div class="message-time" v-if="message.createTime">
@@ -555,7 +555,7 @@ const sendMessage = async () => {
     if (selectedElementInfo.value.textContent) {
       elementContext += `\n- 当前内容: ${selectedElementInfo.value.textContent.substring(0, 100)}`
     }
-    message += elementContext
+    message += "\n" + elementContext
   }
   userInput.value = ''
   // 添加用户消息（包含元素信息）
@@ -923,41 +923,50 @@ const handleRollback = async (index: number) => {
   // 显示确认对话框
   Modal.confirm({
     title: '确认回滚',
-    content: '确定要回滚到这条消息吗？回滚后，此消息之后的所有对话记录将被删除，且无法恢复。',
+    content: `确定要回滚到这条消息吗？您此次将会回滚${messages.value.length - 1 - index}条消息。回滚后，此消息之后的所有对话记录将被删除，且无法恢复。`,
     okText: '确认',
     cancelText: '取消',
     onOk: async () => {
       rollingBack.value = true
       try {
-        // 我们需要获取原始的聊天历史记录来获取historyId
-        // 重新获取聊天历史
-        const params: API.listAppChatHistoryParams = {
-          appId: appId.value,
-          pageSize: 50 // 获取足够多的历史记录，但不超过后端限制
-        }
-        const historyRes = await listAppChatHistory(params)
-        if (historyRes.data.code === 0 && historyRes.data.data) {
-          const chatHistories = historyRes.data.data.records || []
-          if (chatHistories.length > 0) {
-            // 由于消息列表是倒序排列的，我们需要找到对应的历史记录
-            // 我们只回滚到AI的回复，所以需要找到当前AI消息对应的历史记录
-            const targetHistory = chatHistories[chatHistories.length - 1 - (index + 1)]
-            if (targetHistory) {
-              const rollbackRes = await rollbackChatHistory({
-                appId: appId.value as unknown as number,
-                historyId: targetHistory.id
-              })
-              if (rollbackRes.data.code === 0) {
-                message.success('历史回滚成功')
-                // 重新加载聊天历史
-                await fetchAppInfo()
+        // 直接使用已加载的对话历史，不再重新调用接口
+        // 由于消息列表是倒序排列的，我们需要找到对应的历史记录
+        // 我们只回滚到AI的回复，所以需要找到当前AI消息对应的历史记录
+        // index是消息数组中的索引，需要转换为chatHistories中的索引
+        const targetMessage = messages.value[index]
+        if (targetMessage) {
+          // 由于messages数组是按时间正序排列，而chatHistories是按时间倒序排列
+          // 所以需要计算在chatHistories中的实际位置
+          const actualIndex = messages.value.length - 1 - index
+
+          const params: API.listAppChatHistoryParams = {
+            appId: appId.value,
+            pageSize: 50 // 获取足够多的历史记录，但不超过后端限制
+          }
+          const historyRes = await listAppChatHistory(params)
+          if (historyRes.data.code === 0 && historyRes.data.data) {
+            const chatHistories = historyRes.data.data.records || []
+            if (chatHistories.length > 0 && actualIndex < chatHistories.length) {
+              const targetHistory = chatHistories[actualIndex]
+              if (targetHistory) {
+                const rollbackRes = await rollbackChatHistory({
+                  appId: appId.value as unknown as number,
+                  chatHistoryId: targetHistory.id
+                })
+                if (rollbackRes.data.code === 0) {
+                  message.success('历史回滚成功')
+                  // 重新加载聊天历史
+                  await fetchAppInfo()
+                } else {
+                  message.error('历史回滚失败：' + rollbackRes.data.message)
+                }
               } else {
-                message.error('历史回滚失败：' + rollbackRes.data.message)
+                message.error('未找到对应的历史记录')
               }
-            } else {
-              message.error('未找到对应的历史记录')
             }
           }
+        } else {
+          message.error('未找到对应的消息')
         }
       } catch (error) {
         console.error('回滚历史失败：', error)

@@ -2,12 +2,12 @@
 /* eslint-disable */
 import request from '@/request'
 
-/** 回退到指定对话历史版本接口 POST /chatHistory/rollback */
+/** 回退到指定对话历史版本接口 POST /fileHistory/rollback */
 export async function rollbackChatHistory(
   body: API.RollbackChatHistoryRequest,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponseBoolean>('/chatHistory/rollback', {
+  return request<API.BaseResponseBoolean>('/fileHistory/rollback', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

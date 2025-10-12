@@ -253,7 +253,7 @@ declare namespace API {
 
   type RollbackChatHistoryRequest = {
     appId?: number
-    historyId?: number
+    chatHistoryId?: number
   }
 
   type UserRegisterRequest = {
