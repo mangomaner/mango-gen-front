@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { message, Input } from 'ant-design-vue'
+import { SearchOutlined } from '@ant-design/icons-vue'
 import { useLoginUserStore } from '@/stores/loginUser'
 import { listMyAppVoByPage } from '@/api/appController'
 import AppCard from '@/components/AppCard.vue'
@@ -11,8 +12,9 @@ const loginUserStore = useLoginUserStore()
 const myApps = ref<API.AppVO[]>([])
 const myAppsPage = reactive({ current: 1, pageSize: 6, total: 0 })
 const loading = ref(false)
+const searchKeyword = ref('')
 
-const loadMyApps = async () => {
+const loadMyApps = async (appName?: string) => {
   if (!loginUserStore.loginUser.id) {
     message.warning('请先登录')
     return
@@ -24,6 +26,7 @@ const loadMyApps = async () => {
       pageSize: myAppsPage.pageSize,
       sortField: 'createTime',
       sortOrder: 'desc',
+      appName: appName
     })
     if (res.data.code === 0 && res.data.data) {
       myApps.value = res.data.data.records || []
@@ -36,16 +39,61 @@ const loadMyApps = async () => {
   }
 }
 
-const handlePageChange = (page: number, pageSize: number) => {
-  myAppsPage.current = page
-  myAppsPage.pageSize = pageSize
-  loadMyApps()
+// 搜索函数
+const handleSearch = () => {
+  myAppsPage.current = 1; // 搜索时重置到第一页
+  loadMyApps(searchKeyword.value.trim());
 }
 
-const handlePageSizeChange = (_: number, pageSize: number) => {
-  myAppsPage.current = 1
-  myAppsPage.pageSize = pageSize
-  loadMyApps()
+// 计算需要显示的页码
+const visiblePages = computed(() => {
+  const pages = []
+  const maxPage = Math.ceil(myAppsPage.total / myAppsPage.pageSize)
+  const currentPage = myAppsPage.current
+  
+  // 显示当前页左右各2个页码，总共5个页码
+  let startPage = Math.max(1, currentPage - 2)
+  let endPage = Math.min(maxPage, startPage + 4)
+  
+  // 如果后面的页码不够，向前补充
+  if (endPage - startPage < 4) {
+    const prevStartPage = Math.max(1, endPage - 4)
+    if (prevStartPage < startPage) {
+      startPage = prevStartPage
+    }
+  }
+  
+  // 添加页码
+  for (let i = startPage; i <= endPage; i++) {
+    pages.push(i)
+  }
+  
+  return pages
+})
+
+// 点击页码切换页面
+const goToPage = (page: number) => {
+  if (page !== myAppsPage.current) {
+    myAppsPage.current = page
+    loadMyApps(searchKeyword.value.trim())
+  }
+}
+
+// 上一页
+const goToPrevPage = () => {
+  if (myAppsPage.current > 1) {
+    myAppsPage.current--
+    loadMyApps(searchKeyword.value.trim())
+  }
+}
+
+// 下一页
+const goToNextPage = () => {
+  const maxPage = Math.ceil(myAppsPage.total / myAppsPage.pageSize)
+  if (myAppsPage.current < maxPage) {
+    myAppsPage.current++
+    loadMyApps(searchKeyword.value.trim())
+  }
 }
 // 新增：查看作品
 const viewWork = (app: API.AppVO) => {
@@ -72,15 +120,21 @@ onMounted(() => {
 <template>
   <div id="myMaterialsPage">
     <div class="container">
-      <div class="header-row">
-        <div class="title-wrap">
-          <h2 class="section-title">我的素材</h2>
-          <span class="count" v-if="myAppsPage.total">{{ myAppsPage.total }}</span>
+      <!-- 搜索框 -->
+      <div class="search-container">
+          <div class="search-input-container">
+            <Input
+              v-model:value="searchKeyword"
+              placeholder="搜索素材名称"
+              allowClear
+              @pressEnter="handleSearch"
+              class="rounded-input"
+            />
+            <a-button type="primary" size="large" class="search-button" @click="handleSearch">
+              搜索
+            </a-button>
+          </div>
         </div>
-        <div class="toolbar">
-          <a-button size="small" @click="loadMyApps">刷新</a-button>
-        </div>
-      </div>
 
       <a-spin :spinning="loading">
         <div v-if="myApps.length > 0" class="app-grid">
@@ -94,18 +148,31 @@ onMounted(() => {
         </div>
       </a-spin>
 
+      <!-- 左右翻页按钮 -->
+      <div class="app-navigation">
+        <div class="navigation-button left" @click="goToPrevPage" :class="{ disabled: myAppsPage.current <= 1 }">
+          <span class="arrow-icon">&lt;</span>
+        </div>
+        <div class="navigation-button right" @click="goToNextPage" :class="{ disabled: myAppsPage.current >= Math.ceil(myAppsPage.total / myAppsPage.pageSize) }">
+          <span class="arrow-icon">&gt;</span>
+        </div>
+      </div>
+
       <div class="pagination-wrapper" v-if="myAppsPage.total > 0">
-        <a-pagination
-          size="small"
-          v-model:current="myAppsPage.current"
-          v-model:page-size="myAppsPage.pageSize"
-          :total="myAppsPage.total"
-          :page-size-options="['6','12','15']"
-          :show-size-changer="true"
-          :show-total="(total: number) => `共 ${total} 个素材`"
-          @change="handlePageChange"
-          @showSizeChange="handlePageSizeChange"
-        />
+        <div class="pagination-info">
+          共 {{ myAppsPage.total }} 个素材
+        </div>
+        <div class="page-buttons">
+          <div 
+            v-for="page in visiblePages"
+            :key="page"
+            class="page-button"
+            :class="{ active: page === myAppsPage.current }"
+            @click="goToPage(page)"
+          >
+            {{ page }}
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -114,12 +181,152 @@ onMounted(() => {
 <style scoped>
 #myMaterialsPage { width: 100%; }
 .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
-.header-row { display: flex; align-items: center; justify-content: space-between; margin: 8px 0 12px; }
-.title-wrap { display: flex; align-items: center; gap: 8px; }
-.section-title { font-size: 18px; font-weight: 700; margin: 0; }
-.count { font-size: 12px; color: var(--primary-color); background: rgba(102,204,255,.12); padding: 2px 6px; border-radius: 10px; }
+.search-container { 
+    display: flex;
+    justify-content: center;
+    margin: 32px 0 24px;
+    padding: 0 16px;
+  }
+  .search-input-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    max-width: 600px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+.rounded-input {
+  flex: 1;
+  height: 48px;
+  border-radius: 24px;
+  border: 1px solid #d9d9d9;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 16px;
+  padding: 0 24px;
+  background-color: #fff;
+}
+.rounded-input:hover {
+  border-color: #4096ff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+.rounded-input:focus {
+  border-color: #4096ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2), 0 2px 12px rgba(0, 0, 0, 0.1);
+  outline: none;
+}
+.search-button {
+  height: 48px;
+  padding: 0 32px;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #4096ff 0%, #1890ff 100%);
+  border: none;
+  color: white;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 100px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+.search-button:hover {
+  background: linear-gradient(135deg, #59a3ff 0%, #4096ff 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.4);
+  color: white;
+}
+.search-button:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(24, 144, 255, 0.3);
+}
+.search-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.5);
+}
+/* 左右翻页按钮 */
+.app-navigation {
+  display: flex;
+  justify-content: space-between;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.navigation-button {
+  width: 50px;
+  height: 100px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  pointer-events: auto;
+  outline: none;
+}
+
+.navigation-button:hover:not(.disabled) {
+  background: transparent;
+}
+
+.navigation-button.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.arrow-icon {
+  font-size: 32px;
+  font-weight: bold;
+  color: #666;
+}
+
+.left {
+  margin-left: 16px;
+}
+
+.right {
+  margin-right: 16px;
+}
+
 .app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin: 12px 0 16px; }
-.pagination-wrapper { display: flex; justify-content: center; margin-top: 8px; }
+.pagination-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24px;
+  gap: 12px;
+}
+.pagination-info {
+  font-size: 14px;
+  color: #666;
+}
+.page-buttons {
+  display: flex;
+  gap: 8px;
+}
+.page-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+.page-button:hover {
+  background-color: #f0f0f0;
+  color: #4096ff;
+}
+.page-button.active {
+  background-color: #4096ff;
+  color: white;
+  font-weight: bold;
+}
 .empty-state { text-align: center; color: var(--text-secondary); padding: 40px 0; }
 .empty-icon { font-size: 36px; margin-bottom: 8px; opacity: .8; }
 .empty-title { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }

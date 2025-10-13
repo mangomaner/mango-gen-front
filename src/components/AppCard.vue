@@ -1,28 +1,30 @@
 <template>
   <div class="app-card" :class="{ 'app-card--featured': featured }">
-    <div class="app-preview">
-      <img v-if="app.cover" :src="app.cover" :alt="app.appName" />
-      <div v-else class="app-placeholder">
-        <span>🤖</span>
+    <div class="app-content">
+      <div class="app-background">
+        <img v-if="app.cover" :src="app.cover" :alt="app.appName" />
+        <div v-else class="app-placeholder-gradient"></div>
+        <!-- 整体渐变遮罩 -->
+        <div class="app-overlay-gradient"></div>
       </div>
-      <div class="app-overlay">
+      <div class="app-info">
+        <div class="app-info-left">
+          <a-avatar :src="app.user?.userAvatar" :size="40">
+            {{ app.user?.userName?.charAt(0) || 'U' }}
+          </a-avatar>
+        </div>
+        <div class="app-info-right">
+          <h3 class="app-title">{{ app.appName || '未命名应用' }}</h3>
+          <p class="app-author">
+            {{ app.user?.userName || (featured ? '官方' : '未知用户') }}
+          </p>
+        </div>
+      </div>
+      <div class="app-actions">
         <a-space>
           <a-button type="primary" @click="handleViewChat">查看对话</a-button>
           <a-button v-if="app.deployKey" type="default" @click="handleViewWork">查看作品</a-button>
         </a-space>
-      </div>
-    </div>
-    <div class="app-info">
-      <div class="app-info-left">
-        <a-avatar :src="app.user?.userAvatar" :size="40">
-          {{ app.user?.userName?.charAt(0) || 'U' }}
-        </a-avatar>
-      </div>
-      <div class="app-info-right">
-        <h3 class="app-title">{{ app.appName || '未命名应用' }}</h3>
-        <p class="app-author">
-          {{ app.user?.userName || (featured ? '官方' : '未知用户') }}
-        </p>
       </div>
     </div>
   </div>
@@ -57,109 +59,166 @@ const handleViewWork = () => {
 <style scoped>
 .app-card {
   background: var(--bg-primary);
-  border-radius: var(--border-radius-lg);
+  border-radius: 12px; /* 使用更大的圆角增强柔和感 */
   overflow: hidden;
   box-shadow: var(--shadow-light);
   border: 1px solid var(--border-color);
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* 使用更平滑的过渡曲线 */
   cursor: pointer;
+  height: 240px; /* 固定卡片高度 */
+  position: relative;
 }
 
 .app-card:hover {
   transform: translateY(-4px);
-  box-shadow: var(--shadow-medium);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   border-color: var(--primary-color);
 }
 
 .app-card--featured {
-  border-color: var(--primary-color);
-  box-shadow: var(--shadow-medium);
-}
+    border-color: var(--primary-color);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 
-.app-preview {
-  height: 140px;
-  background: var(--bg-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  position: relative;
-}
+  .app-card--featured:hover {
+    box-shadow: 0 15px 30px -8px rgba(0, 0, 0, 0.12), 0 10px 15px -5px rgba(0, 0, 0, 0.05);
+  }
 
-.app-preview img {
-  width: 100%;
+.app-content {
   height: 100%;
-  object-fit: cover;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1; /* 确保内容在遮罩之上 */
 }
 
-.app-placeholder {
-  font-size: 32px;
-  color: var(--text-secondary);
-}
-
-.app-overlay {
+.app-background {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(102, 204, 255, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s;
+  z-index: 0;
+  overflow: hidden;
 }
 
-.app-card:hover .app-overlay {
-  opacity: 1;
+.app-background img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.app-overlay .ant-btn {
-  height: 28px;
-  padding: 0 12px;
-  font-size: 12px;
-  border-radius: var(--border-radius);
+.app-card:hover .app-background img {
+  transform: scale(1.05); /* 悬停时图片轻微放大 */
+}
+
+.app-placeholder-gradient {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+/* 整体渐变遮罩层 */
+.app-overlay-gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.1) 20%,
+    rgba(0, 0, 0, 0.2) 40%,
+    rgba(0, 0, 0, 0.3) 60%,
+    rgba(0, 0, 0, 0.4) 100%
+  );
 }
 
 .app-info {
-  padding: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+    position: relative;
+    z-index: 2;
+    padding: 16px;
+    background: transparent; /* 移除单独的渐变背景 */
+    color: white;
+  }
 
 .app-info-left {
   flex-shrink: 0;
 }
 
 .app-info-left .ant-avatar {
-  width: 28px;
-  height: 28px;
-  font-size: 12px;
+  width: 36px;
+  height: 36px;
+  font-size: 14px;
+  border: 2px solid white;
 }
 
 .app-info-right {
   flex: 1;
   min-width: 0;
+  margin-left: 12px;
 }
 
 .app-title {
-  font-size: 14px;
-  font-weight: 600;
-  margin: 0 0 2px;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    transition: text-shadow 0.3s ease;
+  }
+
+  .app-card:hover .app-title {
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+  }
+
+  .app-author {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    transition: text-shadow 0.3s ease;
+  }
+
+  .app-card:hover .app-author {
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+  }
+
+.app-actions {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 16px;
+    background: transparent; /* 移除单独的渐变背景 */
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 2;
+  }
+
+.app-card:hover .app-actions {
+  transform: translateY(0);
 }
 
-.app-author {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.app-actions .ant-btn {
+  height: 32px;
+  padding: 0 16px;
+  font-size: 13px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.app-actions .ant-btn:hover {
+  transform: translateY(-1px);
 }
 </style>
