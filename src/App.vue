@@ -13,16 +13,16 @@ import BasicLayout from '@/layouts/BasicLayout.vue'
 }
 
 :root {
-  --primary-color: #66ccff;
-  --primary-light: #99ddff;
-  --primary-dark: #4db8e6;
+  --primary-color: #4a9eff;
+  --primary-light: #7ebcff;
+  --primary-dark: #3685e8;
   --text-primary: #2c3e50;
   --text-secondary: #7f8c8d;
   --bg-primary: #ffffff;
   --bg-secondary: #f8f9fa;
   --border-color: #e9ecef;
-  --shadow-light: 0 2px 8px rgba(102, 204, 255, 0.1);
-  --shadow-medium: 0 4px 16px rgba(102, 204, 255, 0.15);
+  --shadow-light: 0 2px 8px rgba(74, 158, 255, 0.1);
+  --shadow-medium: 0 4px 16px rgba(74, 158, 255, 0.15);
   --border-radius: 8px;
   --border-radius-lg: 12px;
 }

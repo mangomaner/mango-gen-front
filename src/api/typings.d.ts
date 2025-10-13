@@ -118,6 +118,18 @@ declare namespace API {
     createTime?: string
     updateTime?: string
     isDelete?: number
+    parentId?: number
+  }
+
+  type ChatHistoryOriginal = {
+    id?: number
+    message?: string
+    messageType?: string
+    appId?: number
+    userId?: number
+    createTime?: string
+    updateTime?: string
+    isDelete?: number
   }
 
   type ChatHistoryQueryRequest = {
@@ -131,6 +143,11 @@ declare namespace API {
     appId?: number
     userId?: number
     lastCreateTime?: string
+  }
+
+  type ChatHistoryRollbackRequest = {
+    appId?: number
+    chatHistoryId?: number
   }
 
   type chatToGenCodeParams = {
@@ -151,7 +168,15 @@ declare namespace API {
   }
 
   type getAppVOByIdParams = {
-    id: string | number
+    id: number
+  }
+
+  type getInfo1Params = {
+    id: number
+  }
+
+  type getInfoParams = {
+    id: number
   }
 
   type getUserByIdParams = {
@@ -163,7 +188,7 @@ declare namespace API {
   }
 
   type listAppChatHistoryParams = {
-    appId: string | number
+    appId: number
     pageSize?: number
     lastCreateTime?: string
   }
@@ -177,6 +202,10 @@ declare namespace API {
     userRole?: string
     createTime?: string
     updateTime?: string
+  }
+
+  type page1Params = {
+    page: PageChatHistory
   }
 
   type PageAppVO = {
@@ -197,6 +226,19 @@ declare namespace API {
     optimizeCountQuery?: boolean
   }
 
+  type PageChatHistoryOriginal = {
+    records?: ChatHistoryOriginal[]
+    pageNumber?: number
+    pageSize?: number
+    totalPage?: number
+    totalRow?: number
+    optimizeCountQuery?: boolean
+  }
+
+  type pageParams = {
+    page: PageChatHistoryOriginal
+  }
+
   type PageUserVO = {
     records?: UserVO[]
     pageNumber?: number
@@ -204,6 +246,14 @@ declare namespace API {
     totalPage?: number
     totalRow?: number
     optimizeCountQuery?: boolean
+  }
+
+  type remove1Params = {
+    id: number
+  }
+
+  type removeParams = {
+    id: number
   }
 
   type ServerSentEventString = true
@@ -224,6 +274,11 @@ declare namespace API {
     createTime?: string
     updateTime?: string
     isDelete?: number
+    vipExpireTime?: string
+    vipCode?: string
+    vipNumber?: number
+    shareCode?: string
+    inviteUser?: number
   }
 
   type UserAddRequest = {
@@ -249,11 +304,6 @@ declare namespace API {
     userAccount?: string
     userProfile?: string
     userRole?: string
-  }
-
-  type RollbackChatHistoryRequest = {
-    appId?: number
-    chatHistoryId?: number
   }
 
   type UserRegisterRequest = {

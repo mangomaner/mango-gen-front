@@ -5,15 +5,14 @@
       <div class="header-content">
       <div class="header-left">
           <div class="app-info">
-            <div class="app-icon">🚀</div>
             <div class="app-details">
-              <h1 class="app-name">{{ appInfo?.appName || 'Mango Gen 应用' }}</h1>
-              <div class="app-meta">
+              <div class="app-header-row">
+                <h1 class="app-name">{{ appInfo?.appName || 'Mango Gen 应用' }}</h1>
                 <a-tag v-if="appInfo?.codeGenType" class="type-tag">
-          {{ formatCodeGenType(appInfo.codeGenType) }}
-        </a-tag>
-                <span class="status-indicator" :class="{ 'generating': isGenerating }">
-                  {{ isGenerating ? '生成中...' : '就绪' }}
+                  {{ formatCodeGenType(appInfo.codeGenType) }}
+                </a-tag>
+                <span v-if="isGenerating" class="status-indicator generating">
+                  生成中...
                 </span>
               </div>
             </div>
@@ -59,35 +58,55 @@
     <div class="main-content">
       <!-- 左侧预览区域（交换到左侧） -->
       <div class="preview-section">
-        <div class="preview-header">
-          <div class="preview-title">
-            <span class="title-icon">🖼️</span>
-            <span>素材预览</span>
-            <div class="preview-status" :class="{ 'generating': isGenerating }">
-              {{ isGenerating ? '生成中...' : '已就绪' }}
+        <div class="preview-header modern-preview-header">
+          <!-- 左：标题与状态 -->
+          <div class="preview-left">
+            <div class="preview-title">
+              <span class="preview-title-text">预览页</span>
+              <div class="preview-status" :class="{ 'generating': isGenerating }">
+                <span class="status-indicator-dot"></span>
+                {{ isGenerating ? '生成中...' : '已就绪' }}
+              </div>
+              <span v-if="previewBlinking" class="preview-blinking-indicator"></span>
             </div>
           </div>
-          <div class="preview-actions">
-            <a-space size="small">
-              <a-button size="small" @click="zoomOut">-</a-button>
-              <span class="scale-label">{{ Math.round(previewScale * 100) }}%</span>
-              <a-button size="small" @click="zoomIn">+</a-button>
-              <a-button size="small" type="link" @click="resetZoom">重置</a-button>
-            </a-space>
+
+          <!-- 中：缩放控件（居中） -->
+          <div class="preview-center">
+            <div class="zoom-controls">
+              <a-button size="small" type="text" @click="zoomOut" class="modern-btn zoom-btn" :hoverable="false">-</a-button>
+              <input
+                type="text"
+                class="scale-box modern-scale-box scale-input"
+                :value="Math.round(previewScale * 100) + '%'"
+                @blur="handleScaleInputChange"
+                @keydown.enter="handleScaleInputChange"
+              />
+              <a-button size="small" type="text" @click="zoomIn" class="modern-btn zoom-btn" :hoverable="false">+</a-button>
+            </div>
+          </div>
+
+          <!-- 右：操作按钮 -->
+          <div class="preview-right modern-actions">
+            <a-button size="small" type="text" @click="refreshPreview" title="刷新预览" class="modern-btn" :hoverable="false">
+              <template #icon>
+                <i class="anticon anticon-sync"></i>
+              </template>
+              刷新
+            </a-button>
             <a-button
                 v-if="isOwner && previewUrl"
                 type="text"
-                :danger="isEditMode"
+                :class="['modern-btn', { 'edit-mode-active': isEditMode }]"
                 @click="toggleEditMode"
-                :class="{ 'edit-mode-active': isEditMode }"
-                class="action-btn"
+                :hoverable="false"
             >
               <template #icon>
                 <EditOutlined />
               </template>
               {{ isEditMode ? '退出编辑' : '编辑模式' }}
             </a-button>
-            <a-button v-if="previewUrl" type="text" @click="openInNewTab" class="action-btn">
+            <a-button v-if="previewUrl" type="text" @click="openInNewTab" class="modern-btn" :hoverable="false">
               <template #icon>
                 <ExportOutlined />
               </template>
@@ -96,20 +115,12 @@
           </div>
         </div>
         <div class="preview-content">
-          <div v-if="!previewUrl && !isGenerating" class="preview-placeholder">
+          <!-- 始终保持一致的预览框显示，不根据生成状态变化 -->
+          <div v-if="!previewUrl" class="preview-placeholder">
             <div class="placeholder-content">
               <div class="placeholder-icon">🚀</div>
               <h3>准备生成你的数字素材</h3>
               <p>描述类型与尺寸，AI 会生成可直接使用的素材与导出建议</p>
-            </div>
-          </div>
-          <div v-else-if="isGenerating" class="preview-loading">
-            <div class="loading-content">
-              <div class="loading-spinner">
-                <div class="spinner"></div>
-              </div>
-              <h3>AI 正在生成与排版...</h3>
-              <p>请稍候，这通常需要几十秒</p>
             </div>
           </div>
           <div v-else class="preview-frame-container">
@@ -125,17 +136,6 @@
 
       <!-- 右侧对话区域（交换到右侧） -->
       <div class="chat-section">
-        <!-- 对话头部 -->
-        <div class="chat-header">
-          <div class="chat-title">
-            <span class="title-icon">✨</span>
-            <span>数字素材对话</span>
-          </div>
-          <div class="chat-stats" v-if="messages.length > 0">
-            <span class="message-count">{{ messages.length }} 条消息</span>
-          </div>
-        </div>
-
         <!-- 消息区域 -->
         <div class="messages-container" ref="messagesContainer">
           <!-- 加载更多按钮 -->
@@ -349,6 +349,7 @@ import { API_BASE_URL, getStaticPreviewUrl } from '@/config/env'
 import { VisualEditor, type ElementInfo } from '@/utils/visualEditor'
 
 import { CloudUploadOutlined, SendOutlined, ExportOutlined, InfoCircleOutlined, DownloadOutlined, EditOutlined, RollbackOutlined } from '@ant-design/icons-vue'
+import { rollbackToHistoryVersion } from '@/api/fileHistoryController.ts'
 
 const route = useRoute()
 const router = useRouter()
@@ -383,6 +384,19 @@ const rollingBack = ref(false)
 const previewUrl = ref('')
 const previewReady = ref(false)
 const previewScale = ref(1)
+const previewBlinking = ref(false)
+
+// 刷新预览
+const refreshPreview = () => {
+  if (previewUrl.value) {
+    // 添加时间戳以确保刷新
+    const timestamp = new Date().getTime()
+    const urlObj = new URL(previewUrl.value, window.location.origin)
+    urlObj.searchParams.set('t', timestamp.toString())
+    previewUrl.value = urlObj.toString()
+    previewReady.value = false
+  }
+}
 
 // 部署相关
 const deploying = ref(false)
@@ -536,8 +550,9 @@ const sendInitialMessage = async (prompt: string) => {
   scrollToBottom()
 
   // 开始生成
-  isGenerating.value = true
-  await generateCode(prompt, aiMessageIndex)
+          isGenerating.value = true
+          previewBlinking.value = true
+          await generateCode(prompt, aiMessageIndex)
 }
 
 // 发送消息
@@ -588,8 +603,9 @@ const sendMessage = async () => {
   scrollToBottom()
 
   // 开始生成
-  isGenerating.value = true
-  await generateCode(message, aiMessageIndex)
+          isGenerating.value = true
+          previewBlinking.value = true
+          await generateCode(message, aiMessageIndex)
 }
 
 // 生成代码 - 使用 EventSource 处理流式响应
@@ -641,16 +657,19 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
     // 处理done事件
     eventSource.addEventListener('done', function () {
       if (streamCompleted) return
-
-      streamCompleted = true
-      isGenerating.value = false
-      eventSource?.close()
-
       // 延迟更新预览，确保后端已完成处理
       setTimeout(async () => {
-        await fetchAppInfo()
+        // await fetchAppInfo()
         updatePreview()
-      }, 1000)
+        // 在生成完代码后调用刷新预览逻辑
+        refreshPreview()
+      }, 0)
+      streamCompleted = true
+      isGenerating.value = false
+      previewBlinking.value = false
+      eventSource?.close()
+
+
     })
 
     // 处理business-error事件（后端限流等错误）
@@ -893,6 +912,18 @@ const setPreviewScale = (scale: number) => {
   const clamped = Math.max(0.5, Math.min(2, scale))
   previewScale.value = Number(clamped.toFixed(2))
 }
+
+// 处理手动输入的缩放值
+const handleScaleInputChange = (e: Event) => {
+  const input = e.target as HTMLInputElement
+  // 提取数字部分并转换为数字
+  const numValue = parseFloat(input.value.replace(/[^0-9.]/g, ''))
+  if (!isNaN(numValue)) {
+    setPreviewScale(numValue / 100)
+  }
+  // 重新设置显示值，确保格式正确
+  input.value = Math.round(previewScale.value * 100) + '%'
+}
 const zoomIn = () => setPreviewScale(previewScale.value + 0.1)
 const zoomOut = () => setPreviewScale(previewScale.value - 0.1)
 const resetZoom = () => setPreviewScale(1)
@@ -946,7 +977,7 @@ const handleRollback = async (index: number) => {
           // 由于messages数组是按时间正序排列，而chatHistories是按时间倒序排列
           // 所以需要计算在chatHistories中的实际位置
           console.log('targetMessage', targetMessage)
-          const rollbackRes = await rollbackChatHistory({
+          const rollbackRes = await rollbackToHistoryVersion({
             appId: appId.value as unknown as number,
             chatHistoryId: targetMessage.id
           })
@@ -955,6 +986,10 @@ const handleRollback = async (index: number) => {
             message.success('历史回滚成功')
             // 重新加载聊天历史
             await fetchAppInfo()
+            // 回滚完成后自动刷新预览
+            setTimeout(() => {
+              refreshPreview()
+            }, 1000)
           } else {
             message.error('历史回滚失败：' + rollbackRes.data.message)
           }
@@ -1038,8 +1073,13 @@ onUnmounted(() => {
 
 .app-details {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+}
+
+.app-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .app-name {
@@ -1069,8 +1109,6 @@ onUnmounted(() => {
   color: var(--text-secondary);
   padding: 2px 6px;
   border-radius: 4px;
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
 }
 
 .status-indicator.generating {
@@ -1255,8 +1293,7 @@ onUnmounted(() => {
   word-wrap: break-word;
   position: relative;
   border: 1px solid var(--border-color);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  transition: transform .15s ease, box-shadow .15s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
 .user-message .message-text {
@@ -1271,11 +1308,7 @@ onUnmounted(() => {
   color: var(--text-primary);
   border-bottom-left-radius: 6px;
 }
-
-.message-text:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-}
+/* 移除悬浮动画效果 */
 
 /* 气泡尾巴 */
 .user-message .message-text::after {
@@ -1452,11 +1485,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
 }
 
 .send-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
   box-shadow: var(--shadow-light);
 }
 
@@ -1467,27 +1498,21 @@ onUnmounted(() => {
 
 /* 回滚按钮 */
 .rollback-btn {
-  font-size: 12px !important;
-  padding: 6px 12px !important;
+  font-size: 11px !important;
+  padding: 4px 8px !important;
   height: auto !important;
   color: var(--primary-color) !important;
-  border: 1px solid var(--primary-color) !important;
-  border-radius: 6px !important;
+  border: none !important;
+  border-radius: 4px !important;
   background: white !important;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: none !important;
 }
 
 .rollback-btn:hover {
-  color: white !important;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)) !important;
-  border-color: var(--primary-color) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.rollback-btn:active {
-  transform: translateY(0);
+  color: var(--primary-color) !important;
+  background: rgba(24, 144, 255, 0.08) !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+  transition: all 0.2s ease-in-out !important;
 }
 
 .input-footer {
@@ -1536,12 +1561,27 @@ onUnmounted(() => {
 }
 
 .preview-header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr; /* 左 中 右 */
   align-items: center;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
   background: rgba(102, 204, 255, 0.02);
+}
+
+.preview-left {
+  justify-self: start;
+}
+
+.preview-center {
+  justify-self: center;
+}
+
+.preview-right {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .preview-title {
@@ -1662,6 +1702,26 @@ onUnmounted(() => {
   position: relative;
 }
 
+/* 预览闪烁提示灯 */
+.preview-blinking-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #f59e0b;
+  margin-left: 8px;
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+  0%, 50%, 100% {
+    opacity: 0.5;
+  }
+  25%, 75% {
+    opacity: 1;
+  }
+}
+
 .preview-iframe {
   width: 100%;
   height: 100%;
@@ -1747,6 +1807,155 @@ onUnmounted(() => {
     padding: 6px 12px;
     font-size: 12px;
   }
+}
+
+/* 现代企业UI - 预览头部样式 */
+.modern-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #f0f0f0;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.preview-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.preview-title-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.preview-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: #f7f7f7;
+  transition: all 0.3s ease;
+}
+
+.preview-status.generating {
+  color: #faad14;
+  background-color: #fff7e6;
+}
+
+.preview-status:not(.generating) {
+  color: #52c41a;
+  background-color: #f6ffed;
+}
+
+.status-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.modern-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #fff;
+  padding: 2px;
+  border-radius: 6px;
+}
+
+.modern-btn {
+  font-size: 13px;
+  border-radius: 6px;
+  font-weight: 500;
+  border: none !important;
+  color: #2c3e50;
+}
+
+.modern-btn:hover {
+  background-color: #f0f2f5 !important;
+  color: #1890ff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.modern-scale-box {
+  display: inline-block;
+  padding: 4px 8px;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  background-color: #fff;
+  min-width: 45px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 12px;
+  color: #2c3e50;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.scale-input {
+  border: 1px solid #e8e8e8;
+  outline: none;
+  font-family: inherit;
+  min-width: 45px;
+  font-size: 12px;
+  padding: 3px 6px;
+  height: 28px;
+  box-sizing: border-box;
+  font-weight: 600;
+  color: #1890ff;
+  background-color: #fafafa;
+  transition: all 0.3s ease;
+}
+
+.scale-input:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.zoom-btn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.edit-mode-active {
+  color: #1890ff !important;
+  background-color: #e6f7ff !important;
+}
+
+.edit-mode-active:hover {
+  color: #40a9ff !important;
+  background-color: #bae7ff !important;
 }
 
 @media (max-width: 480px) {
