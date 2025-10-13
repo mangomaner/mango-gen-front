@@ -210,7 +210,7 @@
                   <div class="message-time" v-if="message.createTime">
                     {{ formatTime(message.createTime) }}
                     <a-button
-                      v-if="message.type === 'ai' && !message.loading"
+                      v-if="message.type === 'ai' && !message.loading && index !== messages.length - 1"
                       type="primary"
                       size="small"
                       @click="handleRollback(index)"
@@ -599,6 +599,7 @@ const sendMessage = async () => {
     type: 'user',
     id: '',
     content: message,
+    createTime: new Date().toISOString()
   })
 
   // 发送消息后，清除选中元素并退出编辑模式
@@ -616,6 +617,7 @@ const sendMessage = async () => {
     id: '',
     content: '',
     loading: true,
+    createTime: new Date().toISOString()
   })
 
   await nextTick()
