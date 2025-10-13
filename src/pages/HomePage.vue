@@ -129,10 +129,11 @@ const createApp = async () => {
     })
 
     if (res.data.code === 0 && res.data.data) {
-      message.success('应用创建成功')
-      // 跳转到对话页面，确保ID是字符串类型
+      message.success('应用创建成功，即将在新标签页打开对话页面')
+      // 在新标签页打开对话页面，确保ID是字符串类型
       const appId = String(res.data.data)
-      await router.push(`/app/chat/${appId}`)
+      const chatUrl = `${window.location.origin}/app/chat/${appId}`;
+      window.open(chatUrl, '_blank');
     } else {
       message.error('创建失败：' + res.data.message)
     }
@@ -186,10 +187,11 @@ const loadFeaturedApps = async () => {
   }
 }
 
-// 查看对话
+// 查看对话 - 在新标签页中打开
 const viewChat = (appId: string | number | undefined) => {
   if (appId) {
-    router.push(`/app/chat/${appId}?view=1`)
+    const chatUrl = `${window.location.origin}/app/chat/${appId}?view=1`;
+    window.open(chatUrl, '_blank');
   }
 }
 

@@ -253,10 +253,11 @@ const resetForm = () => {
   formRef.value?.clearValidate()
 }
 
-// 进入对话页面
+// 进入对话页面（在新标签页中打开）
 const goToChat = () => {
   if (appInfo.value?.id) {
-    router.push(`/app/chat/${appInfo.value.id}`)
+    const chatUrl = `${window.location.origin}/app/chat/${appInfo.value.id}`;
+    window.open(chatUrl, '_blank');
   }
 }
 

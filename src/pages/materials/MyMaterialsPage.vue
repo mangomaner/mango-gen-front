@@ -56,6 +56,14 @@ const viewWork = (app: API.AppVO) => {
     message.warning('该素材暂无作品链接')
   }
 }
+
+// 新增：查看对话
+const viewChat = (appId: string | number | undefined) => {
+  if (appId) {
+    const chatUrl = `${window.location.origin}/app/chat/${appId}?standalone=true`
+    window.open(chatUrl, '_blank')
+  }
+}
 onMounted(() => {
   loadMyApps()
 })
@@ -76,7 +84,7 @@ onMounted(() => {
 
       <a-spin :spinning="loading">
         <div v-if="myApps.length > 0" class="app-grid">
-          <AppCard v-for="app in myApps" :key="app.id" :app="app" @view-chat="$router.push(`/app/chat/${app.id}?view=1`)" @view-work="viewWork" />
+          <AppCard v-for="app in myApps" :key="app.id" :app="app" @view-chat="viewChat" @view-work="viewWork" />
         </div>
         <div v-else class="empty-state">
           <div class="empty-icon">🗂️</div>

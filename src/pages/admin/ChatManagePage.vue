@@ -175,7 +175,8 @@ const doSearch = () => {
 // 查看应用对话
 const viewAppChat = (appId: number | undefined) => {
   if (appId) {
-    router.push(`/app/chat/${appId}`)
+    const chatUrl = `${window.location.origin}/app/chat/${appId}`;
+    window.open(chatUrl, '_blank');
   }
 }
 

@@ -11,9 +11,7 @@
                 <a-tag v-if="appInfo?.codeGenType" class="type-tag">
                   {{ formatCodeGenType(appInfo.codeGenType) }}
                 </a-tag>
-                <span v-if="isGenerating" class="status-indicator generating">
-                  生成中...
-                </span>
+
               </div>
             </div>
           </div>
@@ -67,7 +65,7 @@
                 <span class="status-indicator-dot"></span>
                 {{ isGenerating ? '生成中...' : '已就绪' }}
               </div>
-              <span v-if="previewBlinking" class="preview-blinking-indicator"></span>
+
             </div>
           </div>
 
@@ -154,7 +152,7 @@
               <div class="message-wrapper">
                 <div class="message-content">
                   <div class="message-text">{{ message.content }}</div>
-                  <div class="message-time" v-if="message.createTime">
+                  <div class="message-time" v-if="message.createTime && message.generationCompleted">
                     {{ formatTime(message.createTime) }}
                   </div>
                 </div>
@@ -207,7 +205,7 @@
                       <span class="loading-text">天钿 正在思考...</span>
                     </div>
                   </div>
-                  <div class="message-time" v-if="message.createTime">
+                  <div class="message-time" v-if="message.createTime && message.generationCompleted">
                     {{ formatTime(message.createTime) }}
                     <a-button
                       v-if="message.type === 'ai' && !message.loading && index !== messages.length - 1"
@@ -475,6 +473,7 @@ const loadChatHistory = async (isLoadMore = false) => {
               id: chat.id,
               content: chat.message || '',
               createTime: chat.createTime,
+              generationCompleted: true, // 添加此属性以确保历史消息显示时间和回滚按钮
             }))
             .reverse() // 反转数组，让老消息在前
         if (isLoadMore) {
@@ -688,6 +687,9 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
       streamCompleted = true
       isGenerating.value = false
       previewBlinking.value = false
+      // 标记生成结束
+      messages.value[aiMessageIndex].generationCompleted = true
+      messages.value[aiMessageIndex].loading = false
       eventSource?.close()
 
 
