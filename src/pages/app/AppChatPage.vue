@@ -174,7 +174,27 @@
               </div>
               <div class="message-content">
                   <div class="message-text">
-                <MarkdownRenderer v-if="message.content" :content="message.content" />
+                <!-- 带有工具调用的消息，默认折叠中间部分 -->
+                <template v-if="message.content && containsFunctionCall(message.content)">
+                  <MarkdownRenderer :content="getFunctionCallParts(message.content).before" />
+                  <div class="tool-call-collapsible">
+                    <div class="tool-call-header" @click="toggleFunctionCall(index)">
+                      <div class="tool-call-icon">⚙️</div>
+                      <div class="tool-call-info">
+<!--                        <span class="tool-call-title">工具调用</span>-->
+                        <span class="tool-call-summary">{{ getToolCallSummary(getFunctionCallParts(message.content).middle) }}</span>
+                      </div>
+                      <div class="tool-call-toggle-icon" :class="{ 'expanded': isFunctionCallExpanded(index) }">{{ isFunctionCallExpanded(index) ? '▲' : '▼' }}</div>
+                    </div>
+                    <div class="tool-call-content" :class="{ 'expanded': isFunctionCallExpanded(index) }">
+                      <div class="tool-call-code">
+                        <MarkdownRenderer :content="getFunctionCallParts(message.content).middle" />
+                      </div>
+                    </div>
+                  </div>
+                  <MarkdownRenderer :content="getFunctionCallParts(message.content).after" />
+                </template>
+                <MarkdownRenderer v-else-if="message.content" :content="message.content" />
                 <div v-if="message.loading" class="loading-indicator">
                       <div class="typing-dots">
                         <span></span>
@@ -337,7 +357,7 @@ import {
   deployApp as deployAppApi,
   deleteApp as deleteAppApi,
 } from '@/api/appController'
-import { listAppChatHistory, rollbackChatHistory } from '@/api/chatHistoryController'
+import { listAppChatHistory } from '@/api/chatHistoryController'
 import { CodeGenTypeEnum, formatCodeGenType } from '@/utils/codeGenTypes'
 import request from '@/request'
 
@@ -949,6 +969,72 @@ const formatTime = (timeString: string) => {
   }
 }
 
+// 工具调用折叠逻辑
+const FUNCTION_CALL_REGEX = /<function_call>([\s\S]*?)<\/function_call>/i
+const expandedFunctionCallIndexes = ref<Set<number>>(new Set())
+
+const containsFunctionCall = (content: string) => {
+  return FUNCTION_CALL_REGEX.test(content)
+}
+
+const getFunctionCallParts = (content: string) => {
+  const match = content.match(FUNCTION_CALL_REGEX)
+  if (!match) {
+    return { before: content, middle: '', after: '' }
+  }
+  const before = content.slice(0, match.index || 0)
+  const middle = match[1] || ''
+  const after = content.slice((match.index || 0) + match[0].length)
+  return { before, middle, after }
+}
+
+const toggleFunctionCall = (index: number) => {
+  const set = expandedFunctionCallIndexes.value
+  if (set.has(index)) {
+    set.delete(index)
+  } else {
+    set.add(index)
+  }
+}
+
+const isFunctionCallExpanded = (index: number) => {
+  return expandedFunctionCallIndexes.value.has(index)
+}
+
+// 获取工具调用摘要
+const getToolCallSummary = (content: string) => {
+  // 尝试提取JSON中的函数名或主要信息作为摘要
+  try {
+    // 去除可能的格式问题
+    const cleanContent = content.replace(/\n/g, '').trim()
+
+    // 尝试解析为JSON
+    const parsed = JSON.parse(cleanContent)
+
+    // 如果有function_name字段，返回它
+    if (parsed.function_name) {
+      return parsed.function_name
+    }
+
+    // 如果有name字段，返回它
+    if (parsed.name) {
+      return parsed.name
+    }
+
+    // 返回JSON对象的第一个键
+    const firstKey = Object.keys(parsed)[0]
+    if (firstKey) {
+      return firstKey
+    }
+  } catch (e) {
+    // 如果不是有效的JSON，截取前30个字符作为摘要
+    return content.trim().substring(0, 28) + (content.length > 28 ? '...' : '')
+  }
+
+  // 默认返回
+  return content.trim().substring(0, 28) + (content.length > 28 ? '...' : '')
+}
+
 // 处理历史回滚
 const handleRollback = async (index: number) => {
   if (rollingBack.value || !appId.value) {
@@ -1369,6 +1455,147 @@ onUnmounted(() => {
 .ai-message .message-time {
   text-align: left;
   justify-content: flex-start;
+}
+
+/* 工具调用折叠样式 */
+.tool-call-collapsible {
+  margin: 8px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background: #fff;
+  border: 1px solid #f0f0f0;
+}
+
+/* 工具调用头部样式 */
+.tool-call-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+  transition: all 0.3s ease;
+}
+
+.tool-call-header:hover {
+  background: #f5f5f5;
+}
+
+.tool-call-icon {
+  font-size: 16px;
+  margin-right: 10px;
+  color: #1890ff;
+}
+
+.tool-call-info {
+  flex: 1;
+}
+
+.tool-call-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-right: 8px;
+}
+
+.tool-call-summary {
+  font-size: 13px;
+  color: #666;
+  opacity: 0.8;
+}
+
+.tool-call-toggle-icon {
+  font-size: 12px;
+  color: #999;
+  transition: transform 0.3s ease;
+}
+
+.tool-call-toggle-icon.expanded {
+  transform: rotate(180deg);
+}
+
+/* 工具调用内容样式 */
+.tool-call-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+  background: #ffffff;
+}
+
+.tool-call-content.expanded {
+  max-height: 600px;
+  padding: 0;
+  overflow: visible;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.tool-call-code {
+  margin: 0 !important;
+  padding: 16px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  color: #1e293b !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  white-space: normal !important;
+  min-height: 120px !important;
+  max-height: 500px !important;
+  box-shadow: none !important;
+  transition: none !important;
+  z-index: 10 !important;
+}
+
+/* 移除所有悬停效果 */
+.tool-call-code:hover {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* 确保Markdown内容在工具调用区域内正确显示 */
+.tool-call-code .markdown-content {
+  color: #1e293b !important;
+  background: transparent !important;
+}
+
+.tool-call-code .markdown-content :deep(pre) {
+  background: #f1f5f9 !important;
+  border-radius: 4px !important;
+}
+
+.tool-call-code .markdown-content :deep(pre code) {
+  background: transparent !important;
+}
+
+.tool-call-code .markdown-content :deep(.hljs) {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+}
+
+/* 滚动条样式优化 - 小巧精致风格 */
+.tool-call-code::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.tool-call-code::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tool-call-code::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+.tool-call-code::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .message-avatar {
