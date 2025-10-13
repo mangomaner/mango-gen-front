@@ -210,7 +210,7 @@ export class VisualEditor {
               z-index: -1 !important;
             }
             .edit-selected {
-              outline: 3px solid #52c41a !important;
+              outline: 3px solid #66ccff !important;
               outline-offset: 2px !important;
               cursor: default !important;
               position: relative !important;
@@ -222,7 +222,7 @@ export class VisualEditor {
               left: -4px !important;
               right: -4px !important;
               bottom: -4px !important;
-              background: rgba(82, 196, 26, 0.03) !important;
+              background: rgba(102, 204, 255, 0.03) !important;
               pointer-events: none !important;
               z-index: -1 !important;
             }
@@ -389,38 +389,10 @@ export class VisualEditor {
            }
          });
 
-         function showEditTip() {
-           if (document.getElementById('edit-tip')) return;
-           const tip = document.createElement('div');
-           tip.id = 'edit-tip';
-           tip.innerHTML = '🎯 编辑模式已开启<br/>悬浮查看元素，点击选中元素';
-           tip.style.cssText = \`
-             position: fixed;
-             top: 20px;
-             right: 20px;
-             background: #1890ff;
-             color: white;
-             padding: 12px 16px;
-             border-radius: 6px;
-             font-size: 14px;
-             z-index: 9999;
-             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-             animation: fadeIn 0.3s ease;
-           \`;
-           const style = document.createElement('style');
-           style.textContent = '@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }';
-           document.head.appendChild(style);
-           document.body.appendChild(tip);
-           setTimeout(() => {
-             if (tip.parentNode) {
-               tip.style.animation = 'fadeIn 0.3s ease reverse';
-               setTimeout(() => tip.remove(), 300);
-             }
-           }, 3000);
-         }
+         // 禁用编辑模式提示弹窗
+         function showEditTip() {}
          injectStyles();
          setupEventListeners();
-         showEditTip();
       })();
     `
   }

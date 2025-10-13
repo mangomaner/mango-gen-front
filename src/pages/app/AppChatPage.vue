@@ -174,25 +174,28 @@
               </div>
               <div class="message-content">
                   <div class="message-text">
-                <!-- 带有工具调用的消息，默认折叠中间部分 -->
+                <!-- 带有工具调用的消息，支持多个function_call标签 -->
                 <template v-if="message.content && containsFunctionCall(message.content)">
-                  <MarkdownRenderer :content="getFunctionCallParts(message.content).before" />
-                  <div class="tool-call-collapsible">
-                    <div class="tool-call-header" @click="toggleFunctionCall(index)">
-                      <div class="tool-call-icon">⚙️</div>
-                      <div class="tool-call-info">
-<!--                        <span class="tool-call-title">工具调用</span>-->
-                        <span class="tool-call-summary">{{ getToolCallSummary(getFunctionCallParts(message.content).middle) }}</span>
+                  <template v-for="(part, partIndex) in getFunctionCallParts(message.content)" :key="partIndex">
+                    <MarkdownRenderer v-if="part.type === 'text'" :content="part.content" />
+                    <div v-else-if="part.type === 'functionCall'" class="tool-call-collapsible">
+                      <div class="tool-call-header" @click="toggleFunctionCall(index, partIndex)">
+                        <div class="tool-call-icon">⚙️</div>
+                        <div class="tool-call-info">
+<!--                          <span class="tool-call-title">工具调用</span>-->
+                          <span class="tool-call-summary">{{ getToolCallSummary(part.content) }}</span>
+                        </div>
+                        <div class="tool-call-toggle-icon" :class="{ 'expanded': isFunctionCallExpanded(index, partIndex) }">
+                          {{ isFunctionCallExpanded(index, partIndex) ? '▲' : '▼' }}
+                        </div>
                       </div>
-                      <div class="tool-call-toggle-icon" :class="{ 'expanded': isFunctionCallExpanded(index) }">{{ isFunctionCallExpanded(index) ? '▲' : '▼' }}</div>
-                    </div>
-                    <div class="tool-call-content" :class="{ 'expanded': isFunctionCallExpanded(index) }">
-                      <div class="tool-call-code">
-                        <MarkdownRenderer :content="getFunctionCallParts(message.content).middle" />
+                      <div class="tool-call-content" :class="{ 'expanded': isFunctionCallExpanded(index, partIndex) }">
+                        <div class="tool-call-code">
+                          <MarkdownRenderer :content="part.content" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <MarkdownRenderer :content="getFunctionCallParts(message.content).after" />
+                  </template>
                 </template>
                 <MarkdownRenderer v-else-if="message.content" :content="message.content" />
                 <div v-if="message.loading" class="loading-indicator">
@@ -267,10 +270,6 @@
         <!-- 智能输入区域 -->
         <div class="input-container">
           <div class="input-wrapper">
-            <div class="input-header">
-              <span class="input-label">💡 描述你的素材</span>
-              <span class="input-tip">示例：科幻壁纸｜玻璃拟态｜2K 竖屏</span>
-            </div>
             <a-tooltip v-if="!isOwner" title="无法在别人的作品下对话哦~" placement="top">
               <div class="input-field">
               <a-textarea
@@ -970,36 +969,75 @@ const formatTime = (timeString: string) => {
 }
 
 // 工具调用折叠逻辑
-const FUNCTION_CALL_REGEX = /<function_call>([\s\S]*?)<\/function_call>/i
-const expandedFunctionCallIndexes = ref<Set<number>>(new Set())
+const FUNCTION_CALL_REGEX = /<function_call>([\s\S]*?)<\/function_call>/gi
 
 const containsFunctionCall = (content: string) => {
   return FUNCTION_CALL_REGEX.test(content)
 }
 
+// 用于存储每个消息中各个functionCall的展开状态
+const expandedFunctionCalls = ref<Map<number, Set<number>>>(new Map())
+
 const getFunctionCallParts = (content: string) => {
-  const match = content.match(FUNCTION_CALL_REGEX)
-  if (!match) {
-    return { before: content, middle: '', after: '' }
+  // 重置正则表达式的lastIndex
+  FUNCTION_CALL_REGEX.lastIndex = 0
+  
+  const parts: Array<{ type: 'text' | 'functionCall', content: string }> = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+  
+  // 查找所有的functionCall标签
+  while ((match = FUNCTION_CALL_REGEX.exec(content)) !== null) {
+    // 添加functionCall标签前的文本
+    if (match.index > lastIndex) {
+      parts.push({
+        type: 'text',
+        content: content.slice(lastIndex, match.index)
+      })
+    }
+    
+    // 添加functionCall内容
+    parts.push({
+      type: 'functionCall',
+      content: match[1] || ''
+    })
+    
+    lastIndex = match.index + match[0].length
   }
-  const before = content.slice(0, match.index || 0)
-  const middle = match[1] || ''
-  const after = content.slice((match.index || 0) + match[0].length)
-  return { before, middle, after }
+  
+  // 添加最后一个functionCall标签后的文本
+  if (lastIndex < content.length) {
+    parts.push({
+      type: 'text',
+      content: content.slice(lastIndex)
+    })
+  }
+  
+  return parts
 }
 
-const toggleFunctionCall = (index: number) => {
-  const set = expandedFunctionCallIndexes.value
-  if (set.has(index)) {
-    set.delete(index)
+const toggleFunctionCall = (messageIndex: number, callIndex: number) => {
+  if (!expandedFunctionCalls.value.has(messageIndex)) {
+    expandedFunctionCalls.value.set(messageIndex, new Set())
+  }
+  
+  const callSet = expandedFunctionCalls.value.get(messageIndex)! as Set<number>
+  if (callSet.has(callIndex)) {
+    callSet.delete(callIndex)
   } else {
-    set.add(index)
+    callSet.add(callIndex)
   }
 }
 
-const isFunctionCallExpanded = (index: number) => {
-  return expandedFunctionCallIndexes.value.has(index)
+const isFunctionCallExpanded = (messageIndex: number, callIndex: number) => {
+  if (!expandedFunctionCalls.value.has(messageIndex)) {
+    return false
+  }
+  
+  return expandedFunctionCalls.value.get(messageIndex)!.has(callIndex)
 }
+
+
 
 // 获取工具调用摘要
 const getToolCallSummary = (content: string) => {
@@ -1657,24 +1695,6 @@ onUnmounted(() => {
 
 .input-wrapper {
   position: relative;
-}
-
-.input-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.input-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.input-tip {
-  font-size: 12px;
-  color: var(--text-secondary);
 }
 
 .input-field {
