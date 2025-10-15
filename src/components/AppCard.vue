@@ -120,7 +120,7 @@ const handleViewWork = () => {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
-/* 整体渐变遮罩层 */
+/* 整体渐变遮罩层 - 以白色为主（极低透明度版） */
 .app-overlay-gradient {
   position: absolute;
   top: 0;
@@ -130,11 +130,9 @@ const handleViewWork = () => {
   z-index: 1;
   background: linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.1) 20%,
-    rgba(0, 0, 0, 0.2) 40%,
-    rgba(0, 0, 0, 0.3) 60%,
-    rgba(0, 0, 0, 0.4) 100%
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.1) 70%,
+    rgba(255, 255, 255, 0.2) 100%
   );
 }
 
@@ -142,8 +140,7 @@ const handleViewWork = () => {
     position: relative;
     z-index: 2;
     padding: 16px;
-    background: transparent; /* 移除单独的渐变背景 */
-    color: white;
+    background: transparent;
   }
 
 .app-info-left {
@@ -167,31 +164,39 @@ const handleViewWork = () => {
     font-size: 16px;
     font-weight: 600;
     margin: 0 0 4px;
-    color: white;
+    color: #000000; /* 保持黑色字体 */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    text-shadow: 
+      0 0 8px rgba(255, 255, 255, 0.9), /* 增强的白色发光效果 */
+      0 1px 4px rgba(255, 255, 255, 0.8); /* 常规白色阴影 */
     transition: text-shadow 0.3s ease;
   }
 
   .app-card:hover .app-title {
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+    text-shadow: 
+      0 0 12px rgba(255, 255, 255, 0.95), /* 悬停时增强发光效果 */
+      0 1px 6px rgba(255, 255, 255, 0.9); /* 增强的白色阴影 */
   }
 
   .app-author {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.95);
+    color: #000000; /* 保持黑色字体 */
     margin: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    text-shadow: 
+      0 0 6px rgba(255, 255, 255, 0.85), /* 增强的白色发光效果 */
+      0 1px 3px rgba(255, 255, 255, 0.75); /* 常规白色阴影 */
     transition: text-shadow 0.3s ease;
   }
 
   .app-card:hover .app-author {
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+    text-shadow: 
+      0 0 10px rgba(255, 255, 255, 0.9), /* 悬停时增强发光效果 */
+      0 1px 5px rgba(255, 255, 255, 0.85); /* 增强的白色阴影 */
   }
 
 .app-actions {
@@ -200,10 +205,11 @@ const handleViewWork = () => {
     left: 0;
     right: 0;
     padding: 16px;
-    background: transparent; /* 移除单独的渐变背景 */
+    background: rgba(255, 255, 255, 0.85);
     transform: translateY(100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 2;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
   }
 
 .app-card:hover .app-actions {

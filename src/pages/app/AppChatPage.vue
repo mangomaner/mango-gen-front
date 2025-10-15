@@ -633,6 +633,17 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
   let eventSource: EventSource | null = null
   let streamCompleted = false
 
+  // 添加防抖的滚动函数，避免频繁滚动
+  let scrollTimeout: number | null = null
+  const debouncedScrollToBottom = () => {
+    if (scrollTimeout) {
+      clearTimeout(scrollTimeout)
+    }
+    scrollTimeout = window.setTimeout(() => {
+      scrollToBottom()
+    }, 100) as unknown as number
+  }
+
   try {
     // 获取 axios 配置的 baseURL
     const baseURL = request.defaults.baseURL || API_BASE_URL
@@ -651,6 +662,8 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
     })
 
     let fullContent = ''
+    let lastUpdateTime = 0
+    const MIN_UPDATE_INTERVAL = 50 // 最小更新间隔（毫秒）
 
     // 处理接收到的消息
     eventSource.onmessage = function (event) {
@@ -664,9 +677,17 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
         // 拼接内容
         if (content !== undefined && content !== null) {
           fullContent += content
-          messages.value[aiMessageIndex].content = fullContent
-          messages.value[aiMessageIndex].loading = false
-          scrollToBottom()
+
+          // 限制DOM更新频率
+          const now = Date.now()
+          if (now - lastUpdateTime > MIN_UPDATE_INTERVAL || streamCompleted) {
+            messages.value[aiMessageIndex].content = fullContent
+            messages.value[aiMessageIndex].loading = false
+            lastUpdateTime = now
+
+            // 使用防抖的滚动
+            debouncedScrollToBottom()
+          }
         }
       } catch (error) {
         console.error('解析消息失败:', error)
@@ -677,6 +698,15 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
     // 处理done事件
     eventSource.addEventListener('done', function () {
       if (streamCompleted) return
+
+      // 确保最后一次内容被更新
+      messages.value[aiMessageIndex].content = fullContent
+      messages.value[aiMessageIndex].loading = false
+      messages.value[aiMessageIndex].generationCompleted = true
+
+      // 立即滚动到底部
+      scrollToBottom()
+
       // 延迟更新预览，确保后端已完成处理
       setTimeout(async () => {
         // await fetchAppInfo()
@@ -684,15 +714,11 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
         // 在生成完代码后调用刷新预览逻辑
         refreshPreview()
       }, 0)
+
       streamCompleted = true
       isGenerating.value = false
       previewBlinking.value = false
-      // 标记生成结束
-      messages.value[aiMessageIndex].generationCompleted = true
-      messages.value[aiMessageIndex].loading = false
       eventSource?.close()
-
-
     })
 
     // 处理business-error事件（后端限流等错误）
@@ -973,42 +999,56 @@ const formatTime = (timeString: string) => {
 }
 
 // 工具调用折叠逻辑
-const FUNCTION_CALL_REGEX = /<function_call>([\s\S]*?)<\/function_call>/gi
+const FUNCTION_CALL_START_TAG = '<function_call>'
+const FUNCTION_CALL_END_TAG = '</function_call>'
 
 const containsFunctionCall = (content: string) => {
-  return FUNCTION_CALL_REGEX.test(content)
+  return content.includes(FUNCTION_CALL_START_TAG)
 }
 
 // 用于存储每个消息中各个functionCall的展开状态
 const expandedFunctionCalls = ref<Map<number, Set<number>>>(new Map())
 
+// 使用字符串查找替代正则表达式，提高大文本处理性能
 const getFunctionCallParts = (content: string) => {
-  // 重置正则表达式的lastIndex
-  FUNCTION_CALL_REGEX.lastIndex = 0
-  
+  if (!content.includes(FUNCTION_CALL_START_TAG)) {
+    return [{ type: 'text' as const, content }]
+  }
+
   const parts: Array<{ type: 'text' | 'functionCall', content: string }> = []
   let lastIndex = 0
-  let match: RegExpExecArray | null
-  
-  // 查找所有的functionCall标签
-  while ((match = FUNCTION_CALL_REGEX.exec(content)) !== null) {
+  let startIndex = content.indexOf(FUNCTION_CALL_START_TAG)
+
+  while (startIndex !== -1) {
     // 添加functionCall标签前的文本
-    if (match.index > lastIndex) {
+    if (startIndex > lastIndex) {
       parts.push({
         type: 'text',
-        content: content.slice(lastIndex, match.index)
+        content: content.slice(lastIndex, startIndex)
       })
     }
-    
+
+    // 查找结束标签
+    const endIndex = content.indexOf(FUNCTION_CALL_END_TAG, startIndex + FUNCTION_CALL_START_TAG.length)
+    if (endIndex === -1) {
+      // 没有找到结束标签，将剩余内容作为文本
+      parts.push({
+        type: 'text',
+        content: content.slice(startIndex)
+      })
+      break
+    }
+
     // 添加functionCall内容
     parts.push({
       type: 'functionCall',
-      content: match[1] || ''
+      content: content.slice(startIndex + FUNCTION_CALL_START_TAG.length, endIndex)
     })
-    
-    lastIndex = match.index + match[0].length
+
+    lastIndex = endIndex + FUNCTION_CALL_END_TAG.length
+    startIndex = content.indexOf(FUNCTION_CALL_START_TAG, lastIndex)
   }
-  
+
   // 添加最后一个functionCall标签后的文本
   if (lastIndex < content.length) {
     parts.push({
@@ -1016,7 +1056,7 @@ const getFunctionCallParts = (content: string) => {
       content: content.slice(lastIndex)
     })
   }
-  
+
   return parts
 }
 
@@ -1024,7 +1064,7 @@ const toggleFunctionCall = (messageIndex: number, callIndex: number) => {
   if (!expandedFunctionCalls.value.has(messageIndex)) {
     expandedFunctionCalls.value.set(messageIndex, new Set())
   }
-  
+
   const callSet = expandedFunctionCalls.value.get(messageIndex)! as Set<number>
   if (callSet.has(callIndex)) {
     callSet.delete(callIndex)
@@ -1037,7 +1077,7 @@ const isFunctionCallExpanded = (messageIndex: number, callIndex: number) => {
   if (!expandedFunctionCalls.value.has(messageIndex)) {
     return false
   }
-  
+
   return expandedFunctionCalls.value.get(messageIndex)!.has(callIndex)
 }
 
@@ -1087,6 +1127,7 @@ const handleRollback = async (index: number) => {
     return
   }
 
+
   // 显示确认对话框
   Modal.confirm({
     title: '确认回滚',
@@ -1105,6 +1146,20 @@ const handleRollback = async (index: number) => {
           // 由于messages数组是按时间正序排列，而chatHistories是按时间倒序排列
           // 所以需要计算在chatHistories中的实际位置
           console.log('targetMessage', targetMessage)
+          if(targetMessage.id === '') {
+            await loadChatHistory()
+            Modal.confirm({
+              title: '二次确认',
+              content: `将回滚${messages.value.length - 1 - index}条消息，"${messages.value[index + 1].content.slice(0, 15)}..." 该内容及其之后所有内容将被删除且无法恢复。`,
+              okText: '确认',
+              cancelText: '取消',
+              onOk: async () => {
+                message.warn('历史回滚取消')
+              },onCancel: () => {
+                return
+              }
+            })
+          }
           const rollbackRes = await rollbackToHistoryVersion({
             appId: appId.value as unknown as number,
             chatHistoryId: targetMessage.id
@@ -1117,9 +1172,9 @@ const handleRollback = async (index: number) => {
             // 回滚完成后自动刷新预览
             setTimeout(() => {
               refreshPreview()
-            }, 1000)
+            }, 10)
           } else {
-            message.error('历史回滚失败：' + rollbackRes.data.message)
+            message.error('历史回滚失败：' + rollbackRes.data.message + "请刷新重试")
           }
 
         } else {

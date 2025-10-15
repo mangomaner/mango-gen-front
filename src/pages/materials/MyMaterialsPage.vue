@@ -123,16 +123,17 @@ onMounted(() => {
       <!-- 搜索框 -->
       <div class="search-container">
           <div class="search-input-container">
-            <Input
-              v-model:value="searchKeyword"
-              placeholder="搜索素材名称"
-              allowClear
-              @pressEnter="handleSearch"
-              class="rounded-input"
-            />
-            <a-button type="primary" size="large" class="search-button" @click="handleSearch">
-              搜索
-            </a-button>
+            <div class="custom-search-wrapper" @click="handleSearch">
+              <SearchOutlined class="search-icon" />
+              <Input
+                v-model:value="searchKeyword"
+                placeholder="搜索素材名称"
+                allowClear
+                @pressEnter="handleSearch"
+                class="custom-search-input"
+                @click.stop
+              />
+            </div>
           </div>
         </div>
 
@@ -190,57 +191,54 @@ onMounted(() => {
   .search-input-container {
     display: flex;
     align-items: center;
-    gap: 16px;
     width: 100%;
-    max-width: 600px;
+    max-width: 700px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-.rounded-input {
-  flex: 1;
-  height: 48px;
-  border-radius: 24px;
-  border: 1px solid #d9d9d9;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 16px;
-  padding: 0 24px;
-  background-color: #fff;
-}
-.rounded-input:hover {
-  border-color: #4096ff;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-.rounded-input:focus {
-  border-color: #4096ff;
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2), 0 2px 12px rgba(0, 0, 0, 0.1);
-  outline: none;
-}
-.search-button {
-  height: 48px;
-  padding: 0 32px;
-  border-radius: 24px;
-  font-size: 16px;
-  font-weight: 600;
-  background: linear-gradient(135deg, #4096ff 0%, #1890ff 100%);
-  border: none;
-  color: white;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: 100px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-.search-button:hover {
-  background: linear-gradient(135deg, #59a3ff 0%, #4096ff 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.4);
-  color: white;
-}
-.search-button:active {
-  transform: translateY(0);
-  box-shadow: 0 3px 10px rgba(24, 144, 255, 0.3);
-}
-.search-button:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.5);
-}
+  .custom-search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 56px;
+    border-radius: 28px;
+    background-color: white;
+    border: 1px solid #e6e6e6;
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+  .custom-search-wrapper:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-color: #d9d9d9;
+  }
+  .search-icon {
+    position: absolute;
+    left: 20px;
+    font-size: 18px;
+    color: #999;
+    z-index: 1;
+  }
+  .custom-search-input {
+    flex: 1;
+    height: 100%;
+    border: none;
+    border-radius: 28px;
+    font-size: 16px;
+    padding: 0 20px 0 50px;
+    background-color: transparent;
+    outline: none;
+  }
+  .custom-search-input::placeholder {
+    color: #999;
+  }
+  .ant-input-clear-icon {
+    right: 70px !important;
+    font-size: 16px;
+    color: #999;
+  }
+  .ant-input-clear-icon:hover {
+    color: #666;
+  }
 /* 左右翻页按钮 */
 .app-navigation {
   display: flex;
