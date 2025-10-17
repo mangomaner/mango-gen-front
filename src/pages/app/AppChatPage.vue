@@ -383,6 +383,7 @@ interface Message {
   content: string
   loading?: boolean
   createTime?: string
+  generationCompleted?: boolean
 }
 
 const messages = ref<Message[]>([])
@@ -553,15 +554,21 @@ const sendInitialMessage = async (prompt: string) => {
   // 添加用户消息
   messages.value.push({
     type: 'user',
+    id: '',
     content: prompt,
+    createTime: new Date().toISOString(),
+    generationCompleted: false
   })
 
   // 添加AI消息占位符
   const aiMessageIndex = messages.value.length
   messages.value.push({
     type: 'ai',
+    id: '',
     content: '',
     loading: true,
+    createTime: new Date().toISOString(),
+    generationCompleted: false
   })
 
   await nextTick()
@@ -598,7 +605,8 @@ const sendMessage = async () => {
     type: 'user',
     id: '',
     content: message,
-    createTime: new Date().toISOString()
+    createTime: new Date().toISOString(),
+    generationCompleted: false
   })
 
   // 发送消息后，清除选中元素并退出编辑模式
@@ -616,7 +624,8 @@ const sendMessage = async () => {
     id: '',
     content: '',
     loading: true,
-    createTime: new Date().toISOString()
+    createTime: new Date().toISOString(),
+    generationCompleted: false
   })
 
   await nextTick()
@@ -703,17 +712,67 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
       messages.value[aiMessageIndex].content = fullContent
       messages.value[aiMessageIndex].loading = false
       messages.value[aiMessageIndex].generationCompleted = true
+      
+      // 立即为用户消息也设置generationCompleted
+      if (aiMessageIndex > 0) {
+        messages.value[aiMessageIndex - 1].generationCompleted = true
+      }
 
       // 立即滚动到底部
       scrollToBottom()
 
       // 延迟更新预览，确保后端已完成处理
       setTimeout(async () => {
-        // await fetchAppInfo()
+        // 重新获取对话历史以更新消息ID
+        try {
+          const params = {
+            appId: appId.value,
+            pageSize: 10
+          }
+          const res = await listAppChatHistory(params)
+          if (res.data.code === 0 && res.data.data) {
+            const chatHistories = res.data.data.records || []
+            
+            // 为每条本地消息尝试更新ID
+            for (let i = 0; i < messages.value.length; i++) {
+              const message = messages.value[i]
+              // 如果已经有ID，跳过
+              if (message.id) continue
+              
+              // 尝试查找匹配的历史记录
+              // 优先匹配最新的消息（因为新消息更可能在最近的记录中）
+              for (let j = chatHistories.length - 1; j >= 0; j--) {
+                const chat = chatHistories[j]
+                // 匹配消息类型
+                if (message.type !== (chat.messageType === 'user' ? 'user' : 'ai')) continue
+                
+                // 使用更宽松的匹配策略：内容包含关系或相似度检查
+                const messageContent = message.content || ''
+                const chatContent = chat.message || ''
+                
+                // 如果本地消息内容是历史消息的子集，或者两者内容相似度很高
+                if (chatContent.includes(messageContent) || 
+                    messageContent.includes(chatContent) ||
+                    (chatContent.replace(/\s+/g, '') && 
+                     messageContent.replace(/\s+/g, '').includes(chatContent.replace(/\s+/g, '').substring(0, 30)))) {
+                  message.id = chat.id
+                  // 同时更新createTime
+                  if (chat.createTime) {
+                    message.createTime = chat.createTime
+                  }
+                  break
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('更新消息ID失败:', error)
+        }
+        
         updatePreview()
         // 在生成完代码后调用刷新预览逻辑
         refreshPreview()
-      }, 0)
+      }, 500)
 
       streamCompleted = true
       isGenerating.value = false
@@ -1146,20 +1205,8 @@ const handleRollback = async (index: number) => {
           // 由于messages数组是按时间正序排列，而chatHistories是按时间倒序排列
           // 所以需要计算在chatHistories中的实际位置
           console.log('targetMessage', targetMessage)
-          if(targetMessage.id === '') {
-            await loadChatHistory()
-            Modal.confirm({
-              title: '二次确认',
-              content: `将回滚${messages.value.length - 1 - index}条消息，"${messages.value[index + 1].content.slice(0, 15)}..." 该内容及其之后所有内容将被删除且无法恢复。`,
-              okText: '确认',
-              cancelText: '取消',
-              onOk: async () => {
-                message.warn('历史回滚取消')
-              },onCancel: () => {
-                return
-              }
-            })
-          }
+          
+          // 移除空ID检查，因为现在每次对话结束后都会自动更新ID
           const rollbackRes = await rollbackToHistoryVersion({
             appId: appId.value as unknown as number,
             chatHistoryId: targetMessage.id

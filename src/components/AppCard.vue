@@ -1,36 +1,37 @@
 <template>
-  <div class="app-card" :class="{ 'app-card--featured': featured }">
-    <div class="app-content">
-      <div class="app-background">
-        <img v-if="app.cover" :src="app.cover" :alt="app.appName" />
-        <div v-else class="app-placeholder-gradient"></div>
-        <!-- 整体渐变遮罩 -->
-        <div class="app-overlay-gradient"></div>
-      </div>
-      <div class="app-info">
-        <div class="app-info-left">
-          <a-avatar :src="app.user?.userAvatar" :size="40">
-            {{ app.user?.userName?.charAt(0) || 'U' }}
-          </a-avatar>
-        </div>
-        <div class="app-info-right">
-          <h3 class="app-title">{{ app.appName || '未命名应用' }}</h3>
-          <p class="app-author">
-            {{ app.user?.userName || (featured ? '官方' : '未知用户') }}
-          </p>
+  <div class="app-card-wrapper">
+    <div class="app-card">
+      <div class="video-container">
+        <div class="video-thumbnail">
+          <img v-if="app.cover" :src="app.cover" :alt="app.appName" />
+          <div v-else class="video-placeholder"></div>
+          <div class="delete-button" @click.stop="handleDelete">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6h-2.5l-.71-.71c-.18-.18-.44-.29-.7-.29H8.91c-.26 0-.52.11-.7.29L8.5 6H3zm4.01 3L9 6h6l.49 3H7.01zm8.49 0h-4.98L13 12h2l.51-3zM10.5 17h3c.83 0 1.5-.67 1.5-1.5S14.33 14 13.5 14h-3c-.83 0-1.5.67-1.5 1.5S9.67 17 10.5 17z"/>
+            </svg>
+          </div>
+          <div class="app-actions">
+            <a-space>
+              <a-button type="primary" @click="handleViewChat">查看对话</a-button>
+              <a-button v-if="app.deployKey" type="default" @click="handleViewWork">查看作品</a-button>
+            </a-space>
+          </div>
         </div>
       </div>
-      <div class="app-actions">
-        <a-space>
-          <a-button type="primary" @click="handleViewChat">查看对话</a-button>
-          <a-button v-if="app.deployKey" type="default" @click="handleViewWork">查看作品</a-button>
-        </a-space>
-      </div>
+    </div>
+    <div class="card-info">
+      <h3 class="video-title">{{ app.appName || '未命名素材' }}</h3>
+      <span class="app-date">{{ formatDate(app.createTime?.toString()) || '' }}</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { Modal } from 'ant-design-vue'
+import { deleteApp } from '@/api/appController'
+import { message } from 'ant-design-vue'
+import { formatDate } from '@/utils/time'
+
 interface Props {
   app: API.AppVO
   featured?: boolean
@@ -39,6 +40,7 @@ interface Props {
 interface Emits {
   (e: 'view-chat', appId: string | number | undefined): void
   (e: 'view-work', app: API.AppVO): void
+  (e: 'delete', appId: string | number | undefined): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -54,177 +56,177 @@ const handleViewChat = () => {
 const handleViewWork = () => {
   emit('view-work', props.app)
 }
+
+const handleDelete = () => {
+  Modal.confirm({
+    title: '确认删除',
+    content: '确定要删除这个素材吗？此操作不可撤销。',
+    onOk: async () => {
+      try {
+        const response = await deleteApp({ id: props.app.id })
+        if (response.data.code === 0 && response.data.data) {
+          message.success('删除成功')
+          emit('delete', props.app.id)
+        } else {
+          message.error('删除失败，请重试')
+        }
+      } catch (error) {
+        console.error('删除失败:', error)
+        message.error('删除失败，请重试')
+      }
+    }
+  })
+}
 </script>
 
 <style scoped>
+.app-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 24px;
+}
+
 .app-card {
-  background: var(--bg-primary);
-  border-radius: 12px; /* 使用更大的圆角增强柔和感 */
+  background: #fff;
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow: var(--shadow-light);
-  border: 1px solid var(--border-color);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* 使用更平滑的过渡曲线 */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   cursor: pointer;
-  height: 240px; /* 固定卡片高度 */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   position: relative;
 }
 
 .app-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.app-card--featured {
-    border-color: var(--primary-color);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .app-card--featured:hover {
-    box-shadow: 0 15px 30px -8px rgba(0, 0, 0, 0.12), 0 10px 15px -5px rgba(0, 0, 0, 0.05);
-  }
-
-.app-content {
-  height: 100%;
+.video-container {
   display: flex;
   flex-direction: column;
+  width: 100%;
+}
+
+.video-thumbnail {
   position: relative;
-  z-index: 1; /* 确保内容在遮罩之上 */
-}
-
-.app-background {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 0;
+  width: 100%;
+  aspect-ratio: 16/9;
   overflow: hidden;
+  background-color: #f2f2f2;
 }
 
-.app-background img {
+.delete-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.95);
+  border: none;
+  border-radius: 8px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(4px);
+}
+
+.app-card:hover .delete-button {
+  opacity: 1;
+}
+
+.delete-button:hover {
+  background: #fff;
+  color: #ff4d4f;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.delete-button svg {
+  transition: transform 0.2s ease;
+}
+
+.delete-button:hover svg {
+  transform: scale(1.1);
+}
+
+.video-thumbnail img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s ease;
 }
 
-.app-card:hover .app-background img {
-  transform: scale(1.05); /* 悬停时图片轻微放大 */
+.app-card:hover .video-thumbnail img {
+  transform: scale(1.02);
 }
 
-.app-placeholder-gradient {
+.video-placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(45deg, #e0e0e0, #f0f0f0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 24px;
 }
-
-/* 整体渐变遮罩层 - 以白色为主（极低透明度版） */
-.app-overlay-gradient {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.1) 70%,
-    rgba(255, 255, 255, 0.2) 100%
-  );
-}
-
-.app-info {
-    position: relative;
-    z-index: 2;
-    padding: 16px;
-    background: transparent;
-  }
-
-.app-info-left {
-  flex-shrink: 0;
-}
-
-.app-info-left .ant-avatar {
-  width: 36px;
-  height: 36px;
-  font-size: 14px;
-  border: 2px solid white;
-}
-
-.app-info-right {
-  flex: 1;
-  min-width: 0;
-  margin-left: 12px;
-}
-
-.app-title {
-    font-size: 16px;
-    font-weight: 600;
-    margin: 0 0 4px;
-    color: #000000; /* 保持黑色字体 */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-shadow: 
-      0 0 8px rgba(255, 255, 255, 0.9), /* 增强的白色发光效果 */
-      0 1px 4px rgba(255, 255, 255, 0.8); /* 常规白色阴影 */
-    transition: text-shadow 0.3s ease;
-  }
-
-  .app-card:hover .app-title {
-    text-shadow: 
-      0 0 12px rgba(255, 255, 255, 0.95), /* 悬停时增强发光效果 */
-      0 1px 6px rgba(255, 255, 255, 0.9); /* 增强的白色阴影 */
-  }
-
-  .app-author {
-    font-size: 13px;
-    color: #000000; /* 保持黑色字体 */
-    margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-shadow: 
-      0 0 6px rgba(255, 255, 255, 0.85), /* 增强的白色发光效果 */
-      0 1px 3px rgba(255, 255, 255, 0.75); /* 常规白色阴影 */
-    transition: text-shadow 0.3s ease;
-  }
-
-  .app-card:hover .app-author {
-    text-shadow: 
-      0 0 10px rgba(255, 255, 255, 0.9), /* 悬停时增强发光效果 */
-      0 1px 5px rgba(255, 255, 255, 0.85); /* 增强的白色阴影 */
-  }
 
 .app-actions {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 16px;
-    background: rgba(255, 255, 255, 0.85);
-    transform: translateY(100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 2;
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
-  }
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
 
 .app-card:hover .app-actions {
-  transform: translateY(0);
+  opacity: 1;
 }
 
 .app-actions .ant-btn {
-  height: 32px;
-  padding: 0 16px;
-  font-size: 13px;
+  height: 36px;
+  padding: 0 18px;
+  font-size: 14px;
   border-radius: 6px;
   transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .app-actions .ant-btn:hover {
   transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.video-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin: 0 0 4px 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-info {
+  margin-top: 8px;
+  padding-left: 4px;
+}
+
+.app-date {
+  font-size: 13px;
+  color: #999;
+  font-weight: 400;
+  display: block;
 }
 </style>

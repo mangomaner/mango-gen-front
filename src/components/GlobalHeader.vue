@@ -30,6 +30,10 @@
               </a-space>
               <template #overlay>
                 <a-menu>
+                  <a-menu-item @click="$router.push('/user/me')">
+                    <UserOutlined />
+                    我的
+                  </a-menu-item>
                   <a-menu-item @click="doLogout">
                     <LogoutOutlined />
                     退出登录
@@ -53,7 +57,7 @@ import { useRouter } from 'vue-router'
 import { type MenuProps, message } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import { userLogout } from '@/api/userController.ts'
-import { LogoutOutlined, HomeOutlined } from '@ant-design/icons-vue'
+import { LogoutOutlined, HomeOutlined, UserOutlined } from '@ant-design/icons-vue'
 
 const loginUserStore = useLoginUserStore()
 const router = useRouter()
@@ -73,9 +77,10 @@ const originItems = [
     title: '主页',
   },
   {
-    key: '/materials',
-    label: '我的素材',
-    title: '我的素材',
+    key: '/user/me',
+    icon: () => h(UserOutlined),
+    label: '我的',
+    title: '我的',
   },
   {
     key: '/admin/userManage',
@@ -115,11 +120,6 @@ const menuItems = computed<MenuProps['items']>(() => filterMenus(originItems))
 const handleMenuClick: MenuProps['onClick'] = (e) => {
   const key = e.key as string
   selectedKeys.value = [key]
-  // 跳转到我的素材单独页面
-  if (key === '/materials') {
-    router.push('/materials')
-    return
-  }
   // 跳转到对应页面
   if (key.startsWith('/')) {
     router.push(key)

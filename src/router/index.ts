@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomePage from '@/pages/HomePage.vue'
-import MyMaterialsPage from '@/pages/materials/MyMaterialsPage.vue'
 import UserLoginPage from '@/pages/user/UserLoginPage.vue'
 import UserRegisterPage from '@/pages/user/UserRegisterPage.vue'
 import UserManagePage from '@/pages/admin/UserManagePage.vue'
@@ -8,6 +7,7 @@ import AppManagePage from '@/pages/admin/AppManagePage.vue'
 import AppChatPage from '@/pages/app/AppChatPage.vue'
 import AppEditPage from '@/pages/app/AppEditPage.vue'
 import ChatManagePage from "@/pages/admin/ChatManagePage.vue";
+import MyPage from '@/pages/user/MyPage.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -18,9 +18,9 @@ const router = createRouter({
       component: HomePage,
     },
     {
-      path: '/materials',
-      name: '我的素材',
-      component: MyMaterialsPage,
+      path: '/user/me',
+      name: '我的',
+      component: MyPage,
     },
     {
       path: '/user/login',
